@@ -1,6 +1,5 @@
 package locker;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author Kors
@@ -119,6 +119,7 @@ class EntityLockerTest {
                 }),
                 threadPool
         );
+
         task2.get();
         assertTrue(!task1.isDone()); // no guarantee that it's true
         task1.get();
