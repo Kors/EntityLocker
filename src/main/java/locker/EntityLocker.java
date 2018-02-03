@@ -2,6 +2,7 @@ package locker;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -11,40 +12,36 @@ import java.util.function.Supplier;
  */
 public class EntityLocker<T> {
 
-	private final Map<T, ReentrantLock> locks = new HashMap<>();
+    private final Map<T, ReentrantLock> locks = new HashMap<>();
 
-	public <R> R modifyObject(T id, Supplier<R> action, long timeout) throws InterruptedException {
-		ReentrantLock lock = getLock(id);
-		try {
-			lock.tryLock(timeout, TimeUnit.SECONDS);
-			return action.get();
-		} finally {
-			if (lock.isHeldByCurrentThread())
-				lock.unlock();
-		}
-	}
+    public <R> Optional<R> modifyObject(T id, Supplier<R> action) {
+        return modifyObject(id, action, 10);
+    }
 
-	public <R> R modifyObject(T id, Supplier<R> action) {
-		ReentrantLock lock = getLock(id);
-		try{
-			lock.lock();
-			return action.get();
-		} finally {
-			if (lock.isHeldByCurrentThread())
-				lock.unlock();
-		}
-	}
+    public <R> Optional<R> modifyObject(T id, Supplier<R> action, long timeout) {
+        ReentrantLock lock = getLock(id);
+        try {
+            lock.tryLock(timeout, TimeUnit.SECONDS);
+            return Optional.ofNullable(action.get());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return Optional.empty();
+        } finally {
+            if (lock.isHeldByCurrentThread())
+                lock.unlock();
+        }
+    }
 
-	private ReentrantLock getLock(T id) {
-		synchronized (locks) {
-			if (locks.containsKey(id))
-				return locks.get(id);
-			else {
-				ReentrantLock newLock = new ReentrantLock();
-				locks.put(id, newLock);
-				return newLock;
-			}
-		}
-	}
+    private ReentrantLock getLock(T id) {
+        synchronized (locks) {
+            if (locks.containsKey(id))
+                return locks.get(id);
+            else {
+                ReentrantLock newLock = new ReentrantLock();
+                locks.put(id, newLock);
+                return newLock;
+            }
+        }
+    }
 
 }

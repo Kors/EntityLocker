@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,12 +21,13 @@ class EntityLockerTest {
         EntityLocker<String> el = new EntityLocker<>();
 
         MyTestObj myObj = new MyTestObj();
-        MyTestObj modified = el.modifyObject("lock", () -> {
+        Optional<MyTestObj> modified = el.modifyObject("lock", () -> {
             myObj.val++;
             return myObj;
         });
 
-        assertEquals(myObj, modified);
+        assertTrue(modified.isPresent());
+        assertEquals(myObj, modified.get());
         assertEquals(1, myObj.val);
     }
 
@@ -36,7 +38,7 @@ class EntityLockerTest {
 
         ExecutorService threadPool = Executors.newFixedThreadPool(10);
         MyTestObj myObj = new MyTestObj();
-        List<Future<MyTestObj>> futures = new ArrayList<>();
+        List<Future<Optional<MyTestObj>>> futures = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             futures.add(CompletableFuture.supplyAsync(
                     () -> el.modifyObject("lock", () -> {
@@ -48,7 +50,7 @@ class EntityLockerTest {
                     threadPool
             ));
         }
-        for (Future<MyTestObj> future : futures) {
+        for (Future<Optional<MyTestObj>> future : futures) {
             future.get();
         }
 
@@ -63,7 +65,7 @@ class EntityLockerTest {
         }
     }
 
-//    EntityLocker should allow concurrent execution of protected code on different entities
+    //    EntityLocker should allow concurrent execution of protected code on different entities
     @Test
     @DisplayName("Threads with different objects could run independently")
     void modifyDifferentObjects_objectsSuccessfullyModified() throws Exception {
@@ -72,7 +74,7 @@ class EntityLockerTest {
         ExecutorService threadPool = Executors.newFixedThreadPool(10);
         MyTestObj myObj = new MyTestObj();
         MyTestObj differentObj = new MyTestObj();
-        Future<MyTestObj> task1 = CompletableFuture.supplyAsync(
+        Future<Optional<MyTestObj>> task1 = CompletableFuture.supplyAsync(
                 () -> el.modifyObject(1, () -> {
                     trySleep(1000);
                     myObj.val++;
@@ -81,7 +83,7 @@ class EntityLockerTest {
                 threadPool
         );
         trySleep(20);
-        Future<MyTestObj> task2 = CompletableFuture.supplyAsync(
+        Future<Optional<MyTestObj>> task2 = CompletableFuture.supplyAsync(
                 () -> el.modifyObject(2, () -> {
                     int val = differentObj.val;
                     differentObj.val = val + 1;
