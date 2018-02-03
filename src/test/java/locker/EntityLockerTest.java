@@ -1,8 +1,10 @@
 package locker;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +16,32 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author Kors
  */
 class EntityLockerTest {
+
+    @Test
+    @DisplayName("One lock for each new id")
+    void modifyObjects_locksCreated() throws Exception {
+        EntityLocker<Double> el = new EntityLocker<>();
+
+        ExecutorService threadPool = Executors.newFixedThreadPool(10);
+        List<Future<Optional<Double>>> futures = new ArrayList<>();
+        for (double d = 0.1; d < 10; d += 0.1) {
+            final Double key = d;
+            for (int i = 0; i < 3; i++) {
+                futures.add(CompletableFuture.supplyAsync(
+                        () -> el.modifyObject(key, () -> key),
+                        threadPool
+                ));
+            }
+        }
+        for (Future<Optional<Double>> future : futures) {
+            future.get();
+        }
+
+        Field locksMapField = el.getClass().getDeclaredField("locks");
+        locksMapField.setAccessible(true);
+        assertEquals(100,
+                ((ConcurrentMap) locksMapField.get(el)).size());
+    }
 
     @Test
     @DisplayName("Simple object modification")

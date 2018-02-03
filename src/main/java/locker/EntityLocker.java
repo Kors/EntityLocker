@@ -1,8 +1,8 @@
 package locker;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -12,7 +12,7 @@ import java.util.function.Supplier;
  */
 public class EntityLocker<T> {
 
-    private final Map<T, ReentrantLock> locks = new HashMap<>();
+    private final ConcurrentMap<T, ReentrantLock> locks = new ConcurrentHashMap<>();
 
     public <R> Optional<R> modifyObject(T id, Supplier<R> action) {
         return modifyObject(id, action, 10);
@@ -33,15 +33,7 @@ public class EntityLocker<T> {
     }
 
     private ReentrantLock getLock(T id) {
-        synchronized (locks) {
-            if (locks.containsKey(id))
-                return locks.get(id);
-            else {
-                ReentrantLock newLock = new ReentrantLock();
-                locks.put(id, newLock);
-                return newLock;
-            }
-        }
+        return locks.computeIfAbsent(id, lock -> new ReentrantLock());
     }
 
 }
