@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  */
 public class EntityLocker<T> {
 
-    private final ConcurrentMap<T, ReentrantLock> locks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<T, CountLocker> locks = new ConcurrentHashMap<>();
 
     /**
      * Method execute Supplier and return result, synchronized by id.
@@ -36,7 +36,8 @@ public class EntityLocker<T> {
      * @param timeout max time limit to wait lock
      */
     public <R> Optional<R> modifyObject(T id, Supplier<R> action, long timeout) {
-        ReentrantLock lock = getLock(id);
+        CountLocker cl = getCountLocker(id);
+        ReentrantLock lock = cl.lock;
         try {
             lock.tryLock(timeout, TimeUnit.SECONDS);
             return Optional.ofNullable(action.get());
@@ -46,11 +47,30 @@ public class EntityLocker<T> {
         } finally {
             if (lock.isHeldByCurrentThread())
                 lock.unlock();
+            cl.releaseLocker();
+            locks.computeIfPresent(id, (key, val) -> val.isInUse() ? val : null);
         }
     }
 
-    private ReentrantLock getLock(T id) {
-        return locks.computeIfAbsent(id, lock -> new ReentrantLock());
+    private CountLocker getCountLocker(T id) {
+        return locks.compute(id, (k, cl) -> cl == null ? new CountLocker() : cl.useCountLocker());
     }
 
+    private class CountLocker {
+        private volatile int inUseCounter = 1;
+        final ReentrantLock lock = new ReentrantLock();
+
+        synchronized CountLocker useCountLocker() {
+            inUseCounter++;
+            return this;
+        }
+
+        synchronized void releaseLocker() {
+            inUseCounter--;
+        }
+
+        boolean isInUse() {
+            return inUseCounter > 0;
+        }
+    }
 }

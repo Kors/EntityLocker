@@ -18,15 +18,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EntityLockerTest {
 
     @Test
-    @DisplayName("One lock for each new id")
+    @DisplayName("No old locks after test")
     void modifyObjects_locksCreated() throws Exception {
         EntityLocker<Double> el = new EntityLocker<>();
 
         ExecutorService threadPool = Executors.newFixedThreadPool(10);
         List<Future<Optional<Double>>> futures = new ArrayList<>();
-        for (double d = 0.1; d < 10; d += 0.1) {
+        for (double d = 0.1; d < 10; d += 0.1) { // 100 iterations
             final Double key = d;
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 10; i++) {
                 futures.add(CompletableFuture.supplyAsync(
                         () -> el.modifyObject(key, () -> key),
                         threadPool
@@ -39,7 +39,7 @@ class EntityLockerTest {
 
         Field locksMapField = el.getClass().getDeclaredField("locks");
         locksMapField.setAccessible(true);
-        assertEquals(100,
+        assertEquals(0,
                 ((ConcurrentMap) locksMapField.get(el)).size());
     }
 

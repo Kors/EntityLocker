@@ -22,3 +22,5 @@ I. Allow reentrant locking.
 II. Allow the caller to specify timeout for locking an entity.
 
 III. Implement protection from deadlocks (but not taking into account possible locks outside EntityLocker).
+
+IV. Avoid memory leaks (and OutOfMemoryError)
